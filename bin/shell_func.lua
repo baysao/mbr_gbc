@@ -82,7 +82,7 @@ function updateConfigs()
     _updateCoreConfig()
 
     local includes_path, includes_cpath = _updateNginxConfig()
---    _updateRedisConfig()
+    _updateRedisConfig()
     _updateSsdbConfig()
     _updateSupervisordConfig(includes_path, includes_cpath)
 end
