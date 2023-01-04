@@ -305,6 +305,18 @@ function Ssdb:commit_pipeline()
     return vals
 end
 
+function Ssdb:hash_to_array(hash)
+    local arr = {}
+    local i = 0
+    for k, v in pairs(hash) do
+        arr[i + 1] = k
+        arr[i + 2] = v
+        i = i + 2
+    end
+    return arr
+end
+
+
 function Ssdb:array_to_hash(t)
     local h = {}
     for i = 1, #t, 2 do
