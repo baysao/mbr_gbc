@@ -34,7 +34,7 @@ else
     local luamd5 = cc.import("#luamd5")
     md5 = luamd5.sumhexa
 end
-local inspect = require "inspect"
+-- local inspect = require "inspect"
 
 local json = cc.import("#json")
 
@@ -56,14 +56,14 @@ end
 
 function Session:start(sid)
 
-   ngx.log(ngx.ERR, "Session:start:"..inspect(sid))
+   -- ngx.log(ngx.ERR, "Session:start:"..inspect(sid))
     local create = sid == nil
     if type(sid) == "nil" then
         sid = _gensid(self._secret)
     elseif type(sid) ~= "string" or sid == "" then
         cc.throw("[Session] invalid sid '%s'", tostring(sid))
     end
-    ngx.log(ngx.ERR, "session start:" .. sid)
+    -- ngx.log(ngx.ERR, "session start:" .. sid)
     local key = self._prefix .. sid
 
     if create then
