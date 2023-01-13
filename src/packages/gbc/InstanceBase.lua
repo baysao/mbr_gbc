@@ -194,8 +194,9 @@ function InstanceBase:getRedis()
 end
 
 function InstanceBase:getJobs(opts)
-    local jobs = self._jobs
-    if not jobs then
+    local jobs
+    -- local jobs = self._jobs
+    -- if not jobs then
         local bean = Beanstalkd:new()
         local config = self.config.server.beanstalkd
         local try = 3
@@ -220,7 +221,7 @@ function InstanceBase:getJobs(opts)
         --        jobs = Jobs:new(bean, self:getRedis())
         jobs = Jobs:new(bean)
         self._jobs = jobs
-    end
+    -- end
     return jobs
 end
 

@@ -28,6 +28,8 @@ local tonumber = tonumber
 local error = error
 local gmatch = string.gmatch
 local remove = table.remove
+local json = cc.import("#json")
+local inspect = require("inspect")
 
 local Ssdb = cc.class("Ssdb")
 
@@ -90,8 +92,8 @@ local commands = {
 
 --function connect(self, ...)
 function Ssdb:connect(host, port)
-   local sock, err, ok
-   host = host or DEFAULT_HOST
+    local sock, err, ok
+    host = host or DEFAULT_HOST
 
     sock, err = _tcp()
     if not sock then
@@ -101,7 +103,7 @@ function Ssdb:connect(host, port)
     if not ok then
         return nil, err
     end
-    
+
     self.sock = sock
     self._config = {host = host, port = port or DEFAULT_PORT}
     return 1
@@ -188,6 +190,9 @@ local function _gen_req(args)
         local arg = args[i]
 
         if arg then
+            if type(arg) == "table" then
+                arg = json.encode(arg)
+            end
             insert(req, len(arg))
             insert(req, "\n")
             insert(req, arg)
@@ -212,6 +217,7 @@ local function _do_cmd(self, ...)
         return nil, "not initialized"
     end
 
+    --    cc.printerror(inspect(args))
     local req = _gen_req(args)
 
     local reqs = self._reqs
@@ -227,8 +233,6 @@ local function _do_cmd(self, ...)
 
     return _read_reply(sock)
 end
-
-
 
 function Ssdb:multi_hset(hashname, ...)
     local args = {...}
@@ -247,7 +251,7 @@ function Ssdb:multi_hset(hashname, ...)
     return _do_cmd(self, "multi_hset", hashname, ...)
 end
 
-function Ssdb:multi_zset( keyname, ...)
+function Ssdb:multi_zset(keyname, ...)
     local args = {...}
     if #args == 1 then
         local t = args[1]
@@ -310,17 +314,32 @@ function Ssdb:hash_to_array(hash)
     local i = 0
     for k, v in pairs(hash) do
         arr[i + 1] = k
+        if type(v) == "table" then
+            v = json.encode(v)
+        end
+
         arr[i + 2] = v
         i = i + 2
     end
     return arr
 end
 
-
 function Ssdb:array_to_hash(t)
     local h = {}
+    local v
     for i = 1, #t, 2 do
-        h[t[i]] = t[i + 1]
+        v = t[i + 1]
+        --       cc.printerror(inspect({v, type(v),v[1]}))
+        if type(v) == "string" then
+            local v1 = v:sub(1, 1)
+            if (v1 == "[" or v1 == "{") then
+                -- cc.printerror(inspect(v[1]))
+                v = json.decode(v)
+            end
+        end
+
+        h[t[i]] = v
+        --        h[t[i]] = t[i + 1]
     end
     return h
 end

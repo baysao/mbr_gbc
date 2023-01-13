@@ -60,7 +60,7 @@ local config = {
         },
         -- background job server
         beanstalkd = {
-            -- host         = "127.0.0.1",
+	   --host         = "127.0.0.1",
             host = "unix:_GBC_CORE_ROOT_/tmp/beanstalkd.sock",
             port = 11300
         }

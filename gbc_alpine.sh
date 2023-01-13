@@ -303,6 +303,22 @@ _beanstalk() {
 	make -j$(nproc)
 	cp -f beanstalkd $DEST_BIN_DIR/bin/beanstalkd/bin
 }
+_gdnsd(){
+GDNS_VER="3.8.0"
+GDNS_OPT="--prefix=$DEST_BIN_DIR/bin/gdnsd"
+GDNS_BUILD_DEPENDENCY="perl perl-libwww ragel libev-dev autoconf automake libtool userspace-rcu-dev libcap-dev libmaxminddb-dev perl-test-harness perl-test-harness-utils libsodium-dev"
+
+apk update \
+&& apk add gcc g++ make patch file openssl ${GDNS_BUILD_DEPENDENCY} \
+&& cd /tmp \
+&& wget https://github.com/gdnsd/gdnsd/releases/download/v${GDNS_VER}/gdnsd-${GDNS_VER}.tar.xz \
+&& tar xJf gdnsd-${GDNS_VER}.tar.xz \
+&& cd gdnsd-${GDNS_VER} \
+&& autoreconf -vif \
+&& ./configure ${GDNS_OPT} \
+&& make \
+&& make install
+}
 # _tools() {
 # 	mkdir -p $DEST_BIN_DIR/bin
 # 	curl -o $DEST_BIN_DIR/bin/jemplate https://raw.githubusercontent.com/ingydotnet/jemplate/master/jemplate
@@ -313,6 +329,8 @@ _beanstalk() {
 # 	echo ""
 # }
 #if [ $# -gt 0 ];then $@;exit 0;fi
+_gdnsd
+exit 0
 _env
 _lualib
 _ssdb
