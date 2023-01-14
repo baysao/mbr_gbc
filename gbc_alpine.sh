@@ -85,6 +85,7 @@ cd $BUILD_DIR
 
 _env() {
     apk add --no-cache --virtual .build-deps \
+	libc6-compat \
         build-base \
         coreutils \
         curl \

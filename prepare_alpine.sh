@@ -6,8 +6,8 @@ if [ -z "$ROOT_DIR" ]; then
 fi
 
 
-
-#apk add --no-cache bash rsync py3-virtualenv py3-pip python3 supervisor
+#apk add --no-cache libc6-compat 
+#bash rsync py3-virtualenv py3-pip python3 supervisor
 cd $ROOT_DIR
 if [ ! -L "bin/openresty" ]; then
 	ln -sf /usr/local/openresty bin/openresty
