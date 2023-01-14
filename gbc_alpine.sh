@@ -329,6 +329,18 @@ _prometheus(){
     mv prometheus-${PROME_VER} $DEST_BIN_DIR/bin/prometheus
     rm /tmp/prometheus-*
 }
+_loki(){
+    mkdir -p $DEST_BIN_DIR/bin/loki
+    cd /tmp
+    LOKI_VER=2.7.1
+    wget https://github.com/grafana/loki/releases/download/v${LOKI_VER}/loki-linux-amd64.zip
+    unzip loki-linux-amd64.zip
+    mv loki-linux-amd64  $DEST_BIN_DIR/bin/loki/loki
+    wget "https://github.com/grafana/loki/releases/download/v${LOKI_VER}/promtail-linux-amd64.zip"
+    unzip promtail-linux-amd64.zip
+    mv promtail-linux-amd64 $DEST_BIN_DIR/bin/loki/promtail
+    chmod +x $DEST_BIN_DIR/bin/loki/*
+}
 # _tools() {
 # 	mkdir -p $DEST_BIN_DIR/bin
 # 	curl -o $DEST_BIN_DIR/bin/jemplate https://raw.githubusercontent.com/ingydotnet/jemplate/master/jemplate
@@ -347,3 +359,4 @@ _redis
 _beanstalkd
 _prometheus
 _gdnsd
+_loki

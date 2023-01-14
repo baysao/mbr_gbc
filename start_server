@@ -12,7 +12,7 @@ function showHelp() {
 
 ROOT_DIR=$(cd "$(dirname $0)" && pwd)
 
-mkdir -p $ROOT_DIR/logs/nginx $ROOT_DIR/db/ssdb $ROOT_DIR/db/beanstalkd $ROOT_DIR/db/redis  $ROOT_DIR/tmp $ROOT_DIR/db/gateway
+mkdir -p $ROOT_DIR/logs/nginx $ROOT_DIR/db/ssdb $ROOT_DIR/db/beanstalkd $ROOT_DIR/db/redis  $ROOT_DIR/tmp $ROOT_DIR/db/gateway $ROOT_DIR/db/loki $ROOT_DIR/db/promtail
 source $ROOT_DIR/gbc/bin/shell_func.sh
 
 if [ $? -ne 0 ]; then
