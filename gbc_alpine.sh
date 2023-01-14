@@ -85,9 +85,11 @@ cd $BUILD_DIR
 
 _env() {
     apk add --no-cache --virtual .build-deps \
+	libc6-compat \
         build-base \
         coreutils \
         curl \
+	wget \
         gd-dev \
         geoip-dev \
         libxslt-dev \
@@ -289,7 +291,7 @@ _redis() {
 	cp -f src/redis-benchmark $DEST_BIN_DIR/bin/redis/bin
 	cp -f src/redis-check-aof $DEST_BIN_DIR/bin/redis/bin
 }
-_beanstalk() {
+_beanstalkd() {
 	# ----
 	# install beanstalkd
 	echo ""
@@ -303,6 +305,43 @@ _beanstalk() {
 	make -j$(nproc)
 	cp -f beanstalkd $DEST_BIN_DIR/bin/beanstalkd/bin
 }
+_gdnsd(){
+GDNS_VER="3.8.0"
+GDNS_OPT="--prefix=$DEST_BIN_DIR/bin/gdnsd"
+GDNS_BUILD_DEPENDENCY="perl perl-libwww ragel libev-dev autoconf automake libtool userspace-rcu-dev libcap-dev libmaxminddb-dev perl-test-harness perl-test-harness-utils libsodium-dev"
+
+apk update \
+&& apk add gcc g++ make patch file openssl ${GDNS_BUILD_DEPENDENCY} \
+&& cd /tmp \
+&& wget https://github.com/gdnsd/gdnsd/releases/download/v${GDNS_VER}/gdnsd-${GDNS_VER}.tar.xz \
+&& tar xJf gdnsd-${GDNS_VER}.tar.xz \
+&& cd gdnsd-${GDNS_VER} \
+&& autoreconf -vif \
+&& ./configure ${GDNS_OPT} \
+&& make \
+&& make install
+&& rm -rf /tmp/gdnsd*
+}
+_prometheus(){
+    PROME_VER=2.41.0
+    cd /tmp
+    wget https://github.com/prometheus/prometheus/releases/download/v${PROME_VER}/prometheus-${PROME_VER}.linux-amd64.tar.gz
+    tar -xvzf prometheus-${PROME_VER}.linux-amd64.tar.gz
+    mv prometheus-${PROME_VER} $DEST_BIN_DIR/bin/prometheus
+    rm /tmp/prometheus-*
+}
+_loki(){
+    mkdir -p $DEST_BIN_DIR/bin/loki
+    cd /tmp
+    LOKI_VER=2.7.1
+    wget https://github.com/grafana/loki/releases/download/v${LOKI_VER}/loki-linux-amd64.zip
+    unzip loki-linux-amd64.zip
+    mv loki-linux-amd64  $DEST_BIN_DIR/bin/loki/loki
+    wget "https://github.com/grafana/loki/releases/download/v${LOKI_VER}/promtail-linux-amd64.zip"
+    unzip promtail-linux-amd64.zip
+    mv promtail-linux-amd64 $DEST_BIN_DIR/bin/loki/promtail
+    chmod +x $DEST_BIN_DIR/bin/loki/*
+}
 # _tools() {
 # 	mkdir -p $DEST_BIN_DIR/bin
 # 	curl -o $DEST_BIN_DIR/bin/jemplate https://raw.githubusercontent.com/ingydotnet/jemplate/master/jemplate
@@ -313,9 +352,12 @@ _beanstalk() {
 # 	echo ""
 # }
 #if [ $# -gt 0 ];then $@;exit 0;fi
+
 _env
 _lualib
 _ssdb
 _redis
-_beanstalk
-
+_beanstalkd
+_prometheus
+_gdnsd
+_loki

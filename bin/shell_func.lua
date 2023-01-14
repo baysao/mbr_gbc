@@ -42,10 +42,12 @@ NGINX_CONF_PATH = CONF_DIR .. "/nginx.conf"
 NGINX_SERVER_CONF_PATH = CONF_DIR .. "/server.conf"
 REDIS_CONF_PATH = CONF_DIR .. "/redis.conf"
 SSDB_CONF_PATH = CONF_DIR .. "/ssdb.conf"
+RSYNCD_CONF_PATH = CONF_DIR .. "/rsyncd.conf"
 SUPERVISORD_CONF_PATH = CONF_DIR .. "/supervisord.conf"
 
 VAR_CONF_PATH = TMP_DIR .. "/config.lua"
 VAR_APP_KEYS_PATH = TMP_DIR .. "/app_keys.lua"
+VAR_RSYNCD_CONF_PATH = TMP_DIR .. "/rsyncd.conf"
 VAR_NGINX_CONF_PATH = TMP_DIR .. "/nginx.conf"
 VAR_REDIS_CONF_PATH = TMP_DIR .. "/redis.conf"
 VAR_SSDB_CONF_PATH = TMP_DIR .. "/ssdb.conf"
@@ -54,7 +56,7 @@ VAR_SUPERVISORD_CONF_PATH = TMP_DIR .. "/supervisord.conf"
 
 local _getValue, _checkVarConfig, _checkAppKeys
 local _updateCoreConfig, _updateNginxConfig
-local _updateRedisConfig, _updateSsdbConfig, _updateSupervisordConfig, _replace_env
+local _updateRedisConfig, _updateSsdbConfig, _updateSupervisordConfig, _replace_env, _updateRsyncdConfig
 
 local supervisors_once = {}
 local _SUPERVISOR_WORKER_PROG_TMPL =
@@ -84,6 +86,7 @@ function updateConfigs()
     local includes_path, includes_cpath = _updateNginxConfig()
     _updateRedisConfig()
     _updateSsdbConfig()
+    _updateRsyncdConfig()
     _updateSupervisordConfig(includes_path, includes_cpath)
 end
 
@@ -776,6 +779,25 @@ _updateNginxConfig = function()
 
     io.writefile(ROOT_DIR .. "/.module_paths", table.concat(_module_paths, "\n") .. "\n")
     return includes_path, includes_cpath
+end
+
+_updateRsyncdConfig = function()
+    -- local config = _checkVarConfig()
+
+    local contents = io.readfile(RSYNCD_CONF_PATH)
+    contents = string.gsub(contents, "_GBC_CORE_ROOT_", ROOT_DIR)
+
+    -- local socket = _getValue(config, "server.ssdb.port")
+   
+
+    -- local host = _getValue(config, "server.ssdb.host", "127.0.0.1")
+    -- local port = _getValue(config, "server.ssdb.port", 8888)
+--    contents = string.gsub(contents, "[# \t]*ip:[ \t]+[%d\\.]+", "ip: " .. host)
+    -- contents = string.gsub(contents, "ip:[ \t]+[%d\\.]+#IP", "ip: " .. host)
+--    contents = string.gsub(contents, "[# \t]*port:[ \t]+%d+", "port: " .. port)
+    -- contents = string.gsub(contents, "port:[ \t]+[%d]+#PORT", "port: " .. port)
+
+    io.writefile(VAR_RSYNCD_CONF_PATH, contents)
 end
 
 _updateSsdbConfig = function()

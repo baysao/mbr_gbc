@@ -1,0 +1,282 @@
+3.8.0 - 2021-08-13
+    * The geoip plugin gained a new feature flag 'ignore_ecs' at the map level,
+      which can be used to ignore EDNS Client Subnet data for all resources
+      which use a given map.  This is primarily for the use-case where the
+      authserver has maps and resources which *do* use ECS data (thus ECS
+      support can't be turned off globally), but one or more specific maps are
+      intended explicitly to use only the DNS source addresses of the queries
+      to make routing decisions.
+    * Added more-pedantic error checking to a couple of strtoul uses (which
+      were otherwise range validated numerically, but this will prevent oddball
+      input cases from "working" in ways they shouldn't).
+    * Added a missing regression test for DYN[AC] on a wildcard hostname
+    * A few meta-updates for the Travis CI migration to .com.
+
+3.7.0 - 2021-06-08
+    * TCP threads now shut down faster on daemon stop/replace with active
+      connections; previously they took up to 10s in a two-phased shutdown
+      approach, now they take up to 5s in a single phase.
+    * TCP threads' timeout management fudge factor for coalescing timer events
+      from multiple connections was increased from 100ms to 250ms.
+    * The UDP send-side code is now non-blocking; it will immediately fail for
+      lack of SO_SNDBUF space for the response instead of blocking up to ~257ms
+      in an attempt to wait for for buffer availability.  This has less chance
+      of negatively impacting other requests waiting in the receive buffer
+      during short spikes, at the cost of burning a little more CPU (to create
+      answers which are quickly dropped on the output side) when buffers are
+      overwhelmed with traffic.
+    * Control sock proto now documented (imperfectly!) at docs/ControlSock.md
+    * Control sock clients now send their version in REQ_INFO
+    * Clearer messaging about certain corner-case configuration parser failures
+      related to bad DNS escapes and $include files.
+    * Bugfix for parsing zonefiles > 4GiB in size
+    * Some possible race conditions in the testsuite which could cause false
+      failures were fixed
+    * Various internal refactorings and code QA improvements
+
+3.6.0 - 2021-02-24
+    * UDP DNS threads now idle much more efficiently when there's little to no
+      network traffic arriving for them.  Previously all such threads woke up
+      and re-executed recvmsg() at least once every ~3.1 seconds.  Now they
+      block indefinitely in a ppoll() call once they've been idle for ~257ms or
+      longer.  This reduces thread wakeup churn and thus power/cpu efficiency
+      waste in the case of unused threads for extra listen addresses.  It also
+      reduces the worst corner case for daemon shutdown delays caused by UDP
+      threads from ~3.1s to ~257ms.
+    * TCP DNS threads now invoke rcu_quiescent_state() more often, which
+      can help data reloads complete faster when there are many active TCP
+      clients per thread.  Previously they quiesced or went offline from RCU
+      once per eventloop iteration, where one iteration could handle up to 1
+      pending request per client connection for many connections.  Now they
+      also quiesce once for each response sent.
+    * SO_REUSEPORT_LB is now used for better UDP and TCP socket loadbalancing
+      on BSDs which have this socket option available.
+    * Zone and config files are now loaded more efficiently when there are many
+      small ones, by switching to a malloc()+read() pattern instead of mmap()
+      for files that are smaller than 1MB.  mmap modifies process-global memory
+      mappings once per file, which is expensive for a multi-threaded daemon
+      loading many small files (especially in parallel!), so it's just not
+      worth it unless the files are large-ish.
+
+3.5.2 - 2021-02-23
+    * Fixed a very rare potential inter-thread race on daemon shutdown due to a
+      'stop' or 'replace'.  If a still-in-progress zone reload operation had
+      started just before the stop/replace, and happened to finish its job at
+      nearly the exact same moment that the main thread was deallocating the
+      zone data, both the reloader thread and the main thread could attempt to
+      deallocate it at the same time.  This happens after DNS listeners are
+      stopped, but it's still an unclean crash instead of a clean termination.
+      In the 'replace' case it would also cause the new daemon to get no stats
+      data handoff thanks to the crash (but the new daemon would still
+      successfully start).  This issue hasn't ever been observed or reported in
+      the wild, but I'm pretty sure it was possible with some extremely low
+      probability.
+    * The timeout for some control socket network operations between two
+      daemons during a 'replace' takeover was extended from a fixed 13s to a
+      fixed 37s.  There is no perfect value here that balances all concerns
+      without adding a ton of new code complexity, but this new value should be
+      more robust in edge cases in practice.  Making it configurable for those
+      with known edge cases would be an easy next step!
+    * Fixed an snprintf format bug that effectively limited stats outputs to
+      32-bit counters on x86_64 x32 ABI builds, even though they were being
+      tracked as 64-bit internally.
+    * Fixed a minor snprintf format bug in a log message about very early
+      failures in zonefile processing, which probably wasn't causing any real
+      bug on most platforms
+    * Hopefully improved the reliability of the 011random.t test on hosts
+      that are slower and/or have smaller default UDP receive buffers.
+    * Added a docs and log warning about not relying on the default 'any'
+      listen option without explicitly requesting it, for compat with future
+      versions.
+    * Relaxed a constraint in the socket handoff process between daemons
+      during 'replace' in the interest of compat with future versions.
+    * Added some additional pedantic safety measures to how TCP thread
+      shutdowns are sequenced.
+    * Improved the utility and/or accuracy of various error log messages
+    * A few small code QA nits of no real consequence
+
+3.5.1 - 2021-02-10
+    * [Fixes marked with [BP] are also backported to 3.[234].x branches for
+      convenience, but new releases from those branches are not imminent]
+    * Fixed issue #202, which was causing non-ANY UDPv4 listen sockets to fail
+      to work correctly on FreeBSD 12.2 due to some new strictness in its
+      parsing of sendmsg() msg_hdr contents since sometime after 12.0. [BP]
+    * Fixed a bug which may have caused issues listening on global unicast
+      UDPv6 addresses bound to loopback interfaces on some platforms.  This
+      was previously fixed for just FreeBSD in 2.4.2 and 3.0.0.  The existing
+      fix was just extended to all other platforms, as it probably should've
+      been the first time around. [BP]
+    * Fixed a bug that was causing escape sequences for binary bytes in
+      domainnames to be emitted incorrectly in log message outputs. [BP]
+    * A workaround was added for building on platforms which lack
+      MSG_CMSG_CLOEXEC for SCM_RIGHTS socket handoff.
+    * Some fatal error message outputs in the case of a failed "replace"
+      operation were cleaned up for consistency.
+    * A new configure argument "--with-buildinfo=FOO" was added so that
+      packagers can build with a consistent version output encoded in the
+      binary regardless of whether they're building directly from git.
+    * Some docs, comments, and log message typos fixed by lintian
+    * A few small code QA nits of no real consequence
+
+3.5.0 - 2021-01-11
+    * Multiple efficiency improvements for TCP conn handling, primarily aimed
+      at reducing the per-conn memory footprint and malloc churn.
+    * Address (A/AAAA) records are now properly randomly shuffled each time
+      they're emitted in responses.  Previously we were doing a basic rotation
+      of them in the supplied order.  Shuffling has better load distribution
+      characteristics in some scenarios.
+    * NS responses now include true glue, when warranted, for qtype=NS at the
+      root of a zone.  This covers some important corner cases, including the
+      root-of-dns delegated glue hints case.  Previously, we were only
+      attempting to attach glue to delegation responses, but never zone root
+      qtype=NS responses.
+
+3.4.2 - 2021-01-11
+    * Several bugfixes are included here which came to light while reworking
+      major chunks of the code in a 4.x prototype branch.  All are also
+      backported to the 3.[23].x branches for packagers.
+    * Fixed a few memory leaks that can happen in certain uncommon zonefile
+      parsing failures related to TXT data, CAA data, and/or the zone
+      filename itself
+    * Fixed some missed response packet compression opportunities when the
+      query name from the client was not already normalized to lower case.
+    * Fixed some log message output bugs when complaining about SOA records
+    * Added missing min_ttl/max_ttl clamping to RFC 3597 records' TTLs.
+    * Fixed a corner case that could cause mixed TTLs in a single rrset, in
+      the case of ACME challenges defined for the same name both statically
+      in zone data and via gdnsdctl.
+    * Fixed a bug which could force an RR's TTL to the value "1" if it were
+      outside the range declared by ttl_min and ttl_max (default 5 and
+      3600000) and the non-default "zones_strict_data" (or -S flag) was
+      enabled.
+    * Configurations of plugins and zone data which allow DYNC to return
+      address (A/AAAA) records are deprecated.  They still work, but they
+      emit a log warning message every time a zone is loaded which creates
+      such a situation.
+
+3.4.1 - 2020-11-20
+    * Bugfix for a rare TCP connection state management issue which can cause a
+      TCP thread to consume excess CPU and prevent the clean exit of the daemon
+      process on shutdown.
+
+3.4.0 - 2020-11-19
+    * The default value of 'experimental_no_chain' has changed from false to
+      true.  This change affects on-the-wire DNS responses in the case of a
+      CNAME record which points to another record in the same zone. This is
+      kind of an edge case for a semver minor version bump: this is not
+      strictly a feature-add, but the behavioral change here is deep in the
+      weeds most users will never see and has been about as widely tested as it
+      can be without becoming a default like it is now.  In case of issues, it
+      can still be disabled by explicitly configuring it to false (which will
+      also emit an error to syslog at startup pleading for bug reports about
+      any such necessary case).  This path seemed better than putting all the
+      risks of this change in a future 4.0 release for the first time, where
+      there would already be a ton of other core work built on top of it,
+      making reversion much more difficult.
+    * A new statistic 'tcp_acceptfail' was created to track all non-trivial
+      failure returns from accept4().
+    * The daemon now makes a soft, non-fatal attempt to raise the soft limit on
+      total file descriptors if internal calculations indicate it may be too
+      small for the configuration (especially tcp listener config).  It will
+      complain to syslog on startup if it sees a potentially-bad fd limit
+      situation that it can't fix due to the hard limits.
+    * The TCP code now at least attempts to handle running into such a file
+      descriptor limit more-gracefully by shutting down the most-idle of its
+      older connections if possible, which is the same mechanism used by our
+      existing internal limiter tcp_clients_per_thread.
+    * Several sites in the code which may emit syslog errors driven by network
+      input (e.g. recv() errors, accept4() errors, etc) now use a different
+      logging call which applies some sanity-level ratelimiting to avoid
+      excessive log spam.
+    * max_edns_response[_v6] default values both changed to 1232, from previous
+      defaults of 1410 and 1212, respectively.
+    * The server now prefers the Linux IP_PMTUDISC_OMIT socket option over
+      IP_PMTUDISC_DONT, when OMIT exists at compile time and works at runtime,
+      which increases resilience against certain kinds of fragmentation
+      attacks.
+
+3.3.0 - 2020-09-09
+    * New Feature: 'skip_first' flag added for geoip resource definitions.
+      This allows defining a backup geoip resource which shares the same map as
+      a primary resource, but always resolves to the second-best choice for a
+      given client, as if the (dynamic) first choice were down.
+
+3.2.2 - 2020-02-19
+    * Bugfix: In the case that a "replace" daemon takeover happened while
+      unexpired ephemeral ACME challenge data was present (which is handed
+      off to the new replacement daemon), the new daemon could pause for the
+      entire value of "acme_challenge_ttl" (default: 10 minutes) during its
+      startup sequence.  The takeover/replace process would eventually succeed
+      between the two daemons, but the long wait would cause various timeouts
+      for control/notification by default (e.g. gdnsdctl won't wait that long
+      to report the success).
+
+3.2.1 - 2019-07-19
+    * Fix CVE-2019-13951: IPv4 addresses in local zone file data which are
+      longer than the maximum legitimate IPv4 address cause a stack buffer
+      overflow and crash.
+    * Fix CVE-2019-13952: IPv6 addresses in local zone file data which are
+      longer than the maximum legitimate IPv6 address cause a stack buffer
+      overflow and crash.
+
+3.2.0 - 2019-05-05
+    * ACME challenge response TXT RRs are now emitted with a TTL of zero by
+      default, which makes things work reliably in some tricky corner cases
+      with ACME providers.  This can be overridden via the new config option
+      "acme_challenge_dns_ttl".
+    * The minimum configurable value for "min_ttl" was reduced from 1 to 0.
+    * The "min_ttl" setting now correctly clamps small TTLs for SOA records.
+    * All out of zone glue addresses (truly out of zone, not just within a
+      local delegation) now generate a warning on zonefile loading (or an error
+      if zones_strict_data is in effect).  Support for out of zone glue will
+      likely be removed in a future major version bump, as it's basically
+      useless and non-recommended in the DNS in general at this point in
+      history, and supporting it is needlessly complicated.
+    * Minor refactorings, nit-fixes, and docs updates.
+
+3.1.0 - 2019-03-30
+    * RFC 8490 "DNS Stateful Operations" (DSO) implemented and enabled by
+      default for all TCP listeners.  Can be disabled in case of interop or
+      other issues via the new global config option "disable_tcp_dso".
+    * Zonefile parsing can now use multiple threads for speed.  There's a new
+      config option "zones_rfc1035_threads" (default: 2) to specify how many
+      threads to use when parsing zones on start or reload.  You'll have to do
+      some testing to find an optimal value for your setup.
+    * TCP control sockets: you can now define a limited-functionality TCP
+      control socket listener which gdnsdctl can connect to from another
+      machine.  See the documentation for the new config option "tcp_control".
+    * experimental_no_chain config option: As the name implies, this is for
+      experimentation only.  If set to true, gdnsd will never chain through
+      zone-local CNAME entries while generating responses, instead emitting
+      just a singular CNAME RR.  See the documentation for more details!
+    * Some substantial internal refactoring was done for code cleanliness and
+      for making runtime queries more CPU/cache-efficient.
+
+3.0.1 - 2019-03-04
+    * Bugfixes:
+      * The code which validates that loaded zonefile RRs are not oversized for
+        implementation limits (~16KB encoded response data per RR Set) was
+        having its results thrown away, nullifying the validation.  Now the
+        limit is checked properly, and zonefiles containing such data will be
+        rejected at load time.
+      * Minor fix for UDP error statistics, in a corner case on platforms that
+        do not have the recvmmsg()/sendmmsg() syscalls, where sometimes what
+        should've incremented the UDP "recvfail" stat instead incremented the
+        "dropped" stat.
+      * Daemon no longer exits with an error if asked for resource states info
+        over the control socket ("gdnsdctl states") when no such states are
+        configured at all.
+      * Removed redundant and outdated help string for "-i" from gdnsdctl's
+        usage output.
+
+3.0.0 - 2019-02-15
+    * Note that this is a major version number bump, and for some users and
+      configurations this means major compatibility-breaking changes.  Do not
+      expect a simple upgrade like a minor version release!  Please see the
+      separate file VERSION3.md which offers an overview of all the major
+      changes from 2.x; there's too much to succinctly summarize here.
+    * Also, all previous NEWS entries were shifted to NEWS.old, so that we can
+      start this file over and leave previous 2146 lines of updates behind.
+    * For beta users: there were no functional changes since the final
+      2.99.9950-beta release, only QA/refactoring work and a couple of
+      FreeBSD-specific fixups to the TCP parts of the testsuite.
