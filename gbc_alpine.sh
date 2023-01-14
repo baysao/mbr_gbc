@@ -88,6 +88,7 @@ _env() {
         build-base \
         coreutils \
         curl \
+	wget \
         gd-dev \
         geoip-dev \
         libxslt-dev \
@@ -289,7 +290,7 @@ _redis() {
 	cp -f src/redis-benchmark $DEST_BIN_DIR/bin/redis/bin
 	cp -f src/redis-check-aof $DEST_BIN_DIR/bin/redis/bin
 }
-_beanstalk() {
+_beanstalkd() {
 	# ----
 	# install beanstalkd
 	echo ""
@@ -318,6 +319,15 @@ apk update \
 && ./configure ${GDNS_OPT} \
 && make \
 && make install
+&& rm -rf /tmp/gdnsd*
+}
+_prometheus(){
+    PROME_VER=2.41.0
+    cd /tmp
+    wget https://github.com/prometheus/prometheus/releases/download/v${PROME_VER}/prometheus-${PROME_VER}.linux-amd64.tar.gz
+    tar -xvzf prometheus-${PROME_VER}.linux-amd64.tar.gz
+    mv prometheus-${PROME_VER} $DEST_BIN_DIR/bin/prometheus
+    rm /tmp/prometheus-*
 }
 # _tools() {
 # 	mkdir -p $DEST_BIN_DIR/bin
@@ -329,11 +339,11 @@ apk update \
 # 	echo ""
 # }
 #if [ $# -gt 0 ];then $@;exit 0;fi
-_gdnsd
-exit 0
+
 _env
 _lualib
 _ssdb
 _redis
-_beanstalk
-
+_beanstalkd
+_prometheus
+_gdnsd

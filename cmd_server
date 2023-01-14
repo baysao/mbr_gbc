@@ -3,6 +3,8 @@
 declare -i DEBUG=0
 ROOT_DIR=$(cd "$(dirname $0)" && pwd)
 
+mkdir -p $ROOT_DIR/logs/nginx $ROOT_DIR/db/ssdb $ROOT_DIR/db/beanstalkd $ROOT_DIR/db/redis  $ROOT_DIR/tmp $ROOT_DIR/db/gateway
+
 source $ROOT_DIR/gbc/bin/shell_func.sh
 
 case "$1" in
