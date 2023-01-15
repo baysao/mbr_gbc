@@ -138,14 +138,17 @@ end
 function HttpInstanceBase:_genOutput(result, err)
     local rtype = type(result)
     if self.config.app.messageFormat == Constants.MESSAGE_FORMAT_JSON then
-       if err then
-	  cc.printerror(err)
+        if err then
+            cc.printerror(err)
             result = {result = false}
         elseif rtype == "nil" then
             result = {}
+        elseif rtype == "string" then
+            return tostring(result)
         elseif rtype ~= "table" then
             result = {result = tostring(result)}
         end
+
         return json.encode(result)
     elseif self.config.app.messageFormat == Constants.MESSAGE_FORMAT_TEXT then
         if err then
