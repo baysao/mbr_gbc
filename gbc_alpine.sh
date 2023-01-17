@@ -342,6 +342,15 @@ _loki(){
     mv promtail-linux-amd64 $DEST_BIN_DIR/bin/loki/promtail
     chmod +x $DEST_BIN_DIR/bin/loki/*
 }
+_luarocks(){
+    apk add gcc g++ make patch
+    cd /tmp
+    wget http://luarocks.github.io/luarocks/releases/luarocks-3.9.2.tar.gz
+    tar xvzf luarocks-3.9.2.tar.gz
+    cd luarocks-3.9.2
+    ./configure --prefix=/tmp/gbc/bin/luarocks
+    make install
+}
 # _tools() {
 # 	mkdir -p $DEST_BIN_DIR/bin
 # 	curl -o $DEST_BIN_DIR/bin/jemplate https://raw.githubusercontent.com/ingydotnet/jemplate/master/jemplate
@@ -361,3 +370,4 @@ _beanstalkd
 _prometheus
 _gdnsd
 _loki
+_luarocks
